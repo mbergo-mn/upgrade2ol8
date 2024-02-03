@@ -44,6 +44,14 @@ log_message "Enabled necessary repositories for the upgrade."
 log_message "Upgrading to Oracle Linux 8.9..."
 # Note: This step requires careful handling. Include specific commands for upgrading.
 # For instance, you may use `dnf` to upgrade to Oracle Linux 8.9, following Oracle's guidelines.
+# Begin upgrade to Oracle Linux 8.9
+# Install Oracle Linux 8.9
+echo "Installing Oracle Linux 8.9..."
+sudo yum install oraclelinux-release-el8 -y
+
+# Upgrade to Oracle Linux 8.9
+echo "Upgrading to Oracle Linux 8.9..."
+sudo yum upgrade -y
 
 # Restart services in /opt
 log_message "Restarting services located in /opt..."

@@ -18,4 +18,4 @@ sudo yum remove centos-* -y
 
 # Verify Upgrade
 echo "Verifying Upgrade..."
-cat /etc/os-releasetouc
+cat /etc/os-release
