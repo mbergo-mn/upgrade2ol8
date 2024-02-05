@@ -1,68 +1,87 @@
 #!/bin/bash
 
+LOCK_FILE="/var/run/upgrade-to-ol8.lock"
+ANSWER_FILE="/etc/leapp/answerfile"
+
 # Ensure the script is run as root
 if [ "$(id -u)" != "0" ]; then
-   echo "This script must be run as root" 1>&2
-   exit 1
-fi
-
-# Step 1: Convert from CentOS 7.9 to Oracle Linux 7.9
-echo "Starting the conversion from CentOS 7.9 to Oracle Linux 7.9..."
-cd /tmp
-wget https://linux.oracle.com/switch/centos2ol.sh
-chmod +x centos2ol.sh
-sh centos2ol.sh
-
-if [ $? -eq 0 ]; then
-    echo "Conversion to Oracle Linux completed successfully."
-else
-    echo "Conversion to Oracle Linux failed. Please check the logs for details."
+    echo "This script must be run as root" 1>&2
     exit 1
 fi
 
-# Step 2: Configure Oracle Linux 7 repository after conversion
-echo "Configuring Oracle Linux 7 repositories..."
-cd /etc/yum.repos.d
-wget https://yum.oracle.com/public-yum-ol7.repo
-# Enabling required repositories for Oracle Linux 7
-yum-config-manager --enable ol7_latest ol7_u0_base
+if [ ! -f "$LOCK_FILE" ]; then
+    # Convert from CentOS 7.9 to Oracle Linux 7.9
+    echo "Starting the conversion from CentOS 7.9 to Oracle Linux 7.9..."
+    cd /tmp
+    wget https://linux.oracle.com/switch/centos2ol.sh
+    chmod +x centos2ol.sh
+    ./centos2ol.sh
 
-# Update system to ensure all packages are up to date after repository change
-echo "Updating system packages..."
-yum update -y
+    if [ $? -eq 0 ]; then
+        echo "Conversion to Oracle Linux completed successfully."
+    else
+        echo "Conversion to Oracle Linux failed. Please check the logs for details."
+        exit 1
+    fi
 
-echo "Reinstalling Oracle Linux 7 kernel..."
-yum reinstall kernel -y
+    # Configure Oracle Linux 7 repository after conversion
+    # echo "Configuring Oracle Linux 7 repositories..."
+    # cd /etc/yum.repos.d
+    # wget https://yum.oracle.com/public-yum-ol7.repo
+    # yum-config-manager --enable ol7_latest ol7_u0_base
 
-# Reinstall all CentOS 7 specific packages to ensure compatibility with Oracle Linux 7
-echo "Reinstalling CentOS 7 specific packages for compatibility with Oracle Linux 7..."
-rpm -qa | grep -i centos | xargs yum -y reinstall
+    # Update system packages
+    echo "Updating system packages..."
+    yum update -y
 
-# Step 3: Update system and install Leapp for upgrade preparation
-echo "Installing Leapp for Oracle Linux upgrade preparation..."
-yum install leapp leapp-repository -y
+    # Reinstall Oracle Linux 7 kernel
+    echo "Reinstalling Oracle Linux 7 kernel..."
+    yum reinstall kernel -y
 
-# Prepare for the upgrade using Leapp
-echo "Preparing for Oracle Linux 8 upgrade with Leapp..."
-leapp preupgrade
+    # Reinstall CentOS 7 specific packages for compatibility
+    echo "Reinstalling CentOS 7 specific packages for compatibility with Oracle Linux 7..."
+    rpm -qa | grep -i centos | xargs yum -y reinstall
 
-# Step 4: Upgrade to Oracle Linux 8 using Leapp
-echo "Upgrading to Oracle Linux 8..."
-leapp upgrade
+    # Create a lock file to indicate the script has run before and needs to resume after reboot
+    touch "$LOCK_FILE"
 
-# Step 5: Configure the Oracle Linux 8 repository after upgrade
-echo "Configuring Oracle Linux 8 repositories..."
-cd /etc/yum.repos.d
-wget https://yum.oracle.com/public-yum-ol8.repo
-# Enabling required repositories for Oracle Linux 8
-yum-config-manager --enable ol8_baseos_latest ol8_appstream
+    echo "System will now reboot. After reboot, please run the script again to continue with the upgrade to Oracle Linux 8."
+    reboot
+else
+    # Ensure Leapp and its repositories are installed
+    echo "Installing Leapp for Oracle Linux upgrade preparation..."
+    yum install leapp leapp-repository -y
 
-# Update system to ensure all packages are up to date after repository change
-echo "Updating system packages for Oracle Linux 8..."
-yum update -y
+    # Run Leapp preupgrade with Oracle Linux configuration
+    echo "Running Leapp preupgrade with Oracle Linux configuration..."
+    leapp preupgrade --oraclelinux
 
-# Step 6: Reinstall packages that were specifically related to CentOS 7 for compatibility with Oracle Linux 8
-echo "Reinstalling CentOS 7 specific packages for compatibility with Oracle Linux 8..."
-rpm -qa | grep -i el7 | xargs yum -y reinstall
+    # Modify the answer file automatically
+    echo "Modifying the answer file automatically..."
+    # Example modification: Uncommenting a line or setting a value
+    # sed -i 's/^#setoption=setoption_value/setoption=setoption_value/' $ANSWER_FILE
+    # Note: Replace the above sed command with the actual change needed
 
-echo "System update, upgrade, and configuration completed."
+    # Proceed with Oracle Linux upgrade
+    echo "Proceeding with Oracle Linux upgrade..."
+    leapp upgrade --oraclelinux
+
+    # Configure Oracle Linux 8 repository after upgrade
+    echo "Configuring Oracle Linux 8 repositories..."
+    cd /etc/yum.repos.d
+    wget https://yum.oracle.com/public-yum-ol8.repo
+    yum-config-manager --enable ol8_baseos_latest ol8_appstream
+
+    # Update system packages for Oracle Linux 8
+    echo "Updating system packages for Oracle Linux 8..."
+    yum update -y
+
+    # Reinstall Oracle 7 Linux specific packages for compatibility with Oracle Linux 8
+    echo "Reinstalling Oracle Linux 7 specific packages for compatibility with Oracle Linux 8..."
+    rpm -qa | grep -i el7 | xargs yum -y reinstall
+
+    echo "System update, upgrade, and configuration completed."
+
+    # Remove the lock file after completion
+    rm -f "$LOCK_FILE"
+fi
