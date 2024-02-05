@@ -31,6 +31,13 @@ yum-config-manager --enable ol7_latest ol7_u0_base
 echo "Updating system packages..."
 yum update -y
 
+echo "Reinstalling Oracle Linux 7 kernel..."
+yum reinstall kernel -y
+
+# Reinstall all CentOS 7 specific packages to ensure compatibility with Oracle Linux 7
+echo "Reinstalling CentOS 7 specific packages for compatibility with Oracle Linux 7..."
+rpm -qa | grep -i centos | xargs yum -y reinstall
+
 # Step 3: Update system and install Leapp for upgrade preparation
 echo "Installing Leapp for Oracle Linux upgrade preparation..."
 yum install leapp leapp-repository -y

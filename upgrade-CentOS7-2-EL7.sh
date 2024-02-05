@@ -66,4 +66,4 @@ yum update -y
 echo "Reinstalling CentOS 7 specific packages for compatibility with Oracle Linux 8..."
 rpm -qa | grep -i el7 | xargs yum -y reinstall
 
-echo "System update, upgrade, and configuration completed."
+echo "System update, upgrade, and configuration completed. Please reboot the system to apply the changes."
