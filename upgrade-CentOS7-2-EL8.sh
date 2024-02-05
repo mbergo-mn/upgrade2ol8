@@ -1,57 +1,61 @@
 #!/bin/bash
 
 # Ensure the script is run as root
-if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root."
+if [ "$(id -u)" != "0" ]; then
+   echo "This script must be run as root" 1>&2
    exit 1
 fi
 
-# Step 1: Update and prepare CentOS 7
-echo "Updating CentOS 7 to the latest version..."
-yum update -y
-yum install -y wget screen yum-utils
-
-# Migrate from CentOS 7 to Oracle Linux 7
-echo "Migrating from CentOS 7 to Oracle Linux 7..."
-wget https://github.com/oracle/centos2ol/blob/main/centos2ol.sh
+# Step 1: Convert from CentOS 7.9 to Oracle Linux 7.9
+echo "Starting the conversion from CentOS 7.9 to Oracle Linux 7.9..."
+cd /tmp
+wget https://linux.oracle.com/switch/centos2ol.sh
 chmod +x centos2ol.sh
-./centos2ol.sh
-# Verify the migration
-echo "Migration to Oracle Linux 7 completed. Please verify by checking /etc/oracle-release."
+sh centos2ol.sh
 
-# Step 2: Configure Oracle Linux 7 repositories
+if [ $? -eq 0 ]; then
+    echo "Conversion to Oracle Linux completed successfully."
+else
+    echo "Conversion to Oracle Linux failed. Please check the logs for details."
+    exit 1
+fi
+
+# Step 2: Configure Oracle Linux 7 repository after conversion
 echo "Configuring Oracle Linux 7 repositories..."
-cd /etc/yum.repos.d/
-# Backup current repos and remove them
-mkdir -p backup && mv *.repo backup/
-# Configure OL7 repository
-wget https://yum.oracle.com/repo/OracleLinux/OL7/beta/x86_64/ -O OracleLinux-OL7.repo
-yum-config-manager --add-repo OracleLinux-OL7.repo
+cd /etc/yum.repos.d
+wget https://yum.oracle.com/public-yum-ol7.repo
+# Enabling required repositories for Oracle Linux 7
+yum-config-manager --enable ol7_latest ol7_u0_base
 
-# Clean YUM cache
-yum clean all
+# Update system to ensure all packages are up to date after repository change
+echo "Updating system packages..."
+yum update -y
 
-# Reinstall all packages for OL7 consistency
-echo "Reinstalling all packages for Oracle Linux 7 consistency..."
-yum reinstall -y $(yum list installed | grep .centos | awk '{print $1}')
+# Step 3: Update system and install Leapp for upgrade preparation
+echo "Installing Leapp for Oracle Linux upgrade preparation..."
+yum install leapp leapp-repository -y
 
-# Step 3: Transition to OL8
-echo "Preparing for Oracle Linux 8 upgrade..."
-# Backup OL7 repos
-mkdir -p backup_ol7 && mv *.repo backup_ol7/
-# Configure OL8 repository
-wget https://yum.oracle.com/repo/OracleLinux/OL8/beta/x86_64/ -O OracleLinux-OL8.repo
-yum-config-manager --add-repo OracleLinux-OL8.repo
+# Prepare for the upgrade using Leapp
+echo "Preparing for Oracle Linux 8 upgrade with Leapp..."
+leapp preupgrade
 
-# Clean YUM cache
-yum clean all
-
-# Step 4: Upgrade to OL8
+# Step 4: Upgrade to Oracle Linux 8 using Leapp
 echo "Upgrading to Oracle Linux 8..."
-yum upgrade -y
+leapp upgrade
 
-# Reinstall all packages for OL8 consistency
-echo "Reinstalling all packages for Oracle Linux 8 consistency..."
-yum reinstall -y $(yum list installed | grep .el7 | awk '{print $1}')
+# Step 5: Configure the Oracle Linux 8 repository after upgrade
+echo "Configuring Oracle Linux 8 repositories..."
+cd /etc/yum.repos.d
+wget https://yum.oracle.com/public-yum-ol8.repo
+# Enabling required repositories for Oracle Linux 8
+yum-config-manager --enable ol8_baseos_latest ol8_appstream
 
-echo "Upgrade process to Oracle Linux 8 completed. Please verify the system's version and functionality."
+# Update system to ensure all packages are up to date after repository change
+echo "Updating system packages for Oracle Linux 8..."
+yum update -y
+
+# Step 6: Reinstall packages that were specifically related to CentOS 7 for compatibility with Oracle Linux 8
+echo "Reinstalling CentOS 7 specific packages for compatibility with Oracle Linux 8..."
+rpm -qa | grep -i el7 | xargs yum -y reinstall
+
+echo "System update, upgrade, and configuration completed."
