@@ -1,56 +1,82 @@
 #!/bin/bash
 
-# Upgrade script from CentOS 7 to Oracle Linux 7, then to Oracle Linux 8
-# This script attempts to handle package reinstallation and YUM to DNF upgrade
+# Upgrade Script from CentOS 7.9 to OL7, then to OL8
 
-# Variables
+# Path to a flag file to control the upgrade flow
 UPGRADE_FLAG="/root/upgrade_stage.txt"
-CENTOS_PKG_LIST="/root/centos_packages.txt"
+LOG_FILE="/root/upgrade_log.txt"
 
-# Stage 1: Migrate from CentOS to Oracle Linux 7
+# Ensure the script is running as root
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 
+   exit 1
+fi
+
+# Log execution
+exec > >(tee -a $LOG_FILE) 2>&1
+
+# Function to check if the last command was successful
+check_success() {
+    if [ $? -ne 0 ]; then
+        echo "An error occurred. Please check the log file for more information."
+        exit 1
+    fi
+}
+
+# Function to migrate CentOS to OL7
 migrate_to_ol7() {
-    echo "Stage 1: Migrating from CentOS to Oracle Linux 7..."
+    echo "Starting migration from CentOS to Oracle Linux 7..."
     yum update -y
+    check_success
+
     yum install -y screen wget
+    check_success
+
     wget https://github.com/oracle/centos2ol/blob/main/centos2ol.sh
+    check_success
+
     chmod +x centos2ol.sh
     ./centos2ol.sh
+    check_success
+
     echo "2" > $UPGRADE_FLAG
-    rpm -qa | grep -i centos > $CENTOS_PKG_LIST
-    echo "Rebooting into Oracle Linux 7..."
+    echo "Migration to Oracle Linux 7 completed. Rebooting to continue..."
     reboot
 }
 
-# Stage 2: Replace CentOS packages, upgrade YUM to DNF
-replace_centos_packages_and_upgrade_yum() {
-    echo "Stage 2: Replacing CentOS packages and upgrading YUM to DNF..."
-    while IFS= read -r package; do
-        yum reinstall -y "$package"
-    done < "$CENTOS_PKG_LIST"
-    yum install -y dnf
-    dnf upgrade -y
-    echo "3" > $UPGRADE_FLAG
-    echo "Rebooting to ensure all updates take effect..."
-    reboot
+# Function to reinstall CentOS packages with OL equivalents
+reinstall_centos_packages() {
+    echo "Identifying and reinstalling CentOS packages with Oracle Linux equivalents..."
+    rpm -qa | grep -i centos | while read -r pkg; do
+        yum reinstall "$pkg" -y
+        check_success
+    done
 }
 
-# Stage 3: Upgrade from Oracle Linux 7 to Oracle Linux 8
+# Function to upgrade from OL7 to OL8
 upgrade_to_ol8() {
-    echo "Stage 3: Upgrading from Oracle Linux 7 to Oracle Linux 8..."
-    # The Leapp upgrade requires manual intervention and careful planning
-    # Placeholder for Leapp upgrade commands and preparation
-    echo "Manual intervention required for OL7 to OL8 upgrade. Please follow Oracle's official documentation."
-    # After manual upgrade:
-    # echo "4" > $UPGRADE_FLAG
+    echo "Starting upgrade from Oracle Linux 7 to Oracle Linux 8..."
+    yum install -y oraclelinux-release-el8
+    check_success
+
+    dnf -y install oracle-epel-release-el8
+    check_success
+
+    dnf -y upgrade
+    check_success
+
+    echo "Upgrade to Oracle Linux 8 completed. Final cleanup and checks..."
+    echo "3" > $UPGRADE_FLAG
 }
 
-# Final stage: Cleanup and finishing touches
+# Function for final cleanup and removing the script from startup
 final_cleanup() {
-    echo "Final Stage: Cleanup and system checks..."
-    # Placeholder for any final cleanup tasks
-    echo "Upgrade process completed."
-    # Remove the script from cron jobs
-    crontab -l | grep -v 'upgrade_script.sh' | crontab -
+    echo "Performing final cleanup..."
+    # Additional cleanup tasks can be added here
+
+    # Remove script from crontab
+    crontab -l | grep -v '/root/upgrade_script.sh' | crontab -
+    echo "Upgrade process completed. Upgrade script removed from startup."
 }
 
 # Main logic
@@ -64,12 +90,10 @@ else
             migrate_to_ol7
             ;;
         2)
-            replace_centos_packages_and_upgrade_yum
-            ;;
-        3)
+            reinstall_centos_packages
             upgrade_to_ol8
             ;;
-        4)
+        3)
             final_cleanup
             ;;
         *)
@@ -79,7 +103,7 @@ else
     esac
 fi
 
-# Add to crontab to run at reboot, if not already added
-if ! crontab -l | grep -q 'upgrade_script.sh'; then
-    (crontab -l 2>/dev/null; echo "@reboot /root/upgrade_script.sh") | crontab -
+# Add to crontab to run at reboot if not already added
+if ! crontab -l | grep -q '/root/upgrade_script.sh'; then
+  (crontab -l 2>/dev/null; echo "@reboot /root/upgrade_script.sh") | crontab -
 fi
