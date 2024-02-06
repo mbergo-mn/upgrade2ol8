@@ -2,23 +2,23 @@
 
 # Ensure the script is run as root
 if [ "$(id -u)" != "0" ]; then
-   echo "This script must be run as root" 1>&2
-   exit 1
+  echo "This script must be run as root" 1>&2
+  exit 1
 fi
 
 # Step 1: Download and run the CentOS to Oracle Linux conversion script
 echo "Starting the conversion from CentOS 7.9 to Oracle Linux 7.9..."
-cd /tmp
+cd /tmp || exit
 wget https://linux.oracle.com/switch/centos2ol.sh
 chmod +x centos2ol.sh
 sh centos2ol.sh
 
 # Checking if the conversion was successful
 if [ $? -eq 0 ]; then
-    echo "Conversion to Oracle Linux completed successfully."
+  echo "Conversion to Oracle Linux completed successfully."
 else
-    echo "Conversion to Oracle Linux failed. Please check the logs for details."
-    exit 1
+  echo "Conversion to Oracle Linux failed. Please check the logs for details."
+  exit 1
 fi
 
 # Step 2: Update the system to Oracle Linux 7.9
