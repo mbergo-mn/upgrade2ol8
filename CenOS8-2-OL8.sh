@@ -2,8 +2,8 @@
 
 # Ensure the script is run as root
 if [ "$(id -u)" -ne 0 ]; then
-   echo "This script must be run as root" 1>&2
-   exit 1
+  echo "This script must be run as root" 1>&2
+  exit 1
 fi
 
 echo "Starting the process to upgrade from CentOS 8 to Oracle Linux 8.9..."
@@ -21,10 +21,10 @@ echo "Running the Oracle Linux Switch script..."
 
 # Step 3: Check for successful switch
 if [ $? -eq 0 ]; then
-    echo "Switch to Oracle Linux repositories successful."
+  echo "Switch to Oracle Linux repositories successful."
 else
-    echo "Switch to Oracle Linux repositories failed. Please check the output for errors."
-    exit 1
+  echo "Switch to Oracle Linux repositories failed. Please check the output for errors."
+  exit 1
 fi
 
 # Step 4: Update all packages to Oracle Linux latest
@@ -47,10 +47,10 @@ cat /etc/oracle-release
 echo "System needs to reboot to complete the upgrade process."
 read -p "Reboot now? (y/N): " answer
 if [[ "$answer" = [Yy]* ]]; then
-    echo "Rebooting..."
-    reboot
+  echo "Rebooting..."
+  reboot
 else
-    echo "Please reboot the system manually to complete the upgrade."
+  echo "Please reboot the system manually to complete the upgrade."
 fi
 
 echo "Upgrade process complete. Your system is now running Oracle Linux 8.9."
