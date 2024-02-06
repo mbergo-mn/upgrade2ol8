@@ -8,7 +8,7 @@ fi
 
 # Step 1: Download and run the CentOS to Oracle Linux conversion script
 echo "Starting the conversion from CentOS 7.9 to Oracle Linux 7.9..."
-cd /tmp
+cd /tmp || exit
 wget https://linux.oracle.com/switch/centos2ol.sh
 chmod +x centos2ol.sh
 sh centos2ol.sh
