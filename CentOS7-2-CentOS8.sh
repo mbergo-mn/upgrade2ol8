@@ -2,8 +2,8 @@
 
 # Ensure the script is executed as root
 if [[ $EUID -ne 0 ]]; then
-   echo "This script must be run as root" 
-   exit 1
+  echo "This script must be run as root"
+  exit 1
 fi
 
 # Step 0: Pre-upgrade warning
@@ -23,7 +23,7 @@ echo "It is crucial to perform a full system backup before proceeding."
 
 # Replacing CentOS 7 repositories with CentOS 8
 echo "Setting up CentOS 8 repositories..."
-cat > /etc/yum.repos.d/CentOS-Base.repo <<EOF
+cat >/etc/yum.repos.d/CentOS-Base.repo <<EOF
 [BaseOS]
 name=CentOS-8 - Base
 baseurl=http://vault.centos.org/8.4.2105/BaseOS/x86_64/os/
@@ -80,8 +80,8 @@ dracut -f --regenerate-all
 echo "Upgrade process is almost complete. A reboot is required to finalize the upgrade."
 read -p "Do you want to reboot now? (y/n): " answer
 if [[ "$answer" = "y" ]]; then
-    echo "Rebooting now..."
-    reboot
+  echo "Rebooting now..."
+  reboot
 else
-    echo "Please reboot the system manually to complete the upgrade process."
+  echo "Please reboot the system manually to complete the upgrade process."
 fi
